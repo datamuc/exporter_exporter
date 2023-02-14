@@ -15,11 +15,9 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -27,8 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/expfmt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -101,30 +97,6 @@ func (cfg moduleConfig) getReverseProxyModifyResponseFunc() func(*http.Response)
 		}
 
 		resp.Body = ioutil.NopCloser(bytes.NewReader(body.Bytes()))
-
-		var bodyReader io.ReadCloser
-		if resp.Header.Get("Content-Encoding") == "gzip" {
-			bodyReader, err = gzip.NewReader(bytes.NewReader(body.Bytes()))
-			if err != nil {
-				return &VerifyError{"Failed to decode gzipped response", err}
-			}
-		} else {
-			bodyReader = ioutil.NopCloser(bytes.NewReader(body.Bytes()))
-		}
-		defer bodyReader.Close()
-
-		dec := expfmt.NewDecoder(bodyReader, expfmt.ResponseFormat(resp.Header))
-		for {
-			mf := dto.MetricFamily{}
-			err := dec.Decode(&mf)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				proxyMalformedCount.WithLabelValues(cfg.name).Inc()
-				return &VerifyError{"Failed to decode metrics from proxied server", err}
-			}
-		}
 
 		return nil
 	}
