@@ -1,0 +1,68 @@
+VERSION      = 0.4.5-nv
+
+SHELL        := /usr/bin/env bash
+GO           := CGO_ENABLED=0 go
+FIRST_GOPATH := $(firstword $(subst :, ,$(GOPATH)))
+FILES         = $(shell find . -name '*.go' | grep -v vendor)
+PREFIX       ?= $(shell pwd)
+BIN_DIR      ?= $(shell pwd)
+
+BINNAME            = exporter_exporter
+
+PWD := $(shell pwd)
+
+all: package
+clean:
+	rm -f $(PACKAGE_FILE)
+	rm -rf dist
+	rm -rf build
+
+.PHONY: test
+test:
+	echo ">> running short tests"
+	$(GO) test -short $(pkgs)
+
+.PHONY: test-static
+test-static:
+	echo ">> running static tests"
+	$(GO) vet $(pkgs)
+	[[ "$(shell gofmt -l $(files))" == "" ]] || (echo "gofmt check failed"; exit 1)
+
+.PHONY: format
+format:
+	echo ">> formatting code"
+	$(GO) fmt $(pkgs)
+
+.PHONY: vet
+vet:
+	echo ">> vetting code"
+	$(GO) vet $(pkgs)
+
+LDFLAGS = -X main.Version=$(VERSION) \
+					-X main.Branch=$(shell git branch --show-current) \
+					-X main.Revision=0 \
+					-X main.BuildUser=$(USER) \
+					-X main.BuildDate=$(shell date '+%FT%T%z')
+
+.PHONY: build
+build: build/$(BINNAME)-$(VERSION).linux-amd64 \
+	build/$(BINNAME)-$(VERSION).linux-arm64 \
+	build/$(BINNAME)-$(VERSION).windows-amd64.exe
+
+build/$(BINNAME)-$(VERSION).windows-amd64.exe: $(SRCS)
+	GOOS=windows GOARCH=amd64 $(GO) build \
+	 -ldflags "$(LDFLAGS)" \
+	 -o $@ \
+	 .
+
+build/$(BINNAME)-$(VERSION).linux-arm64: $(SRCS)
+	GOOS=$* GOARCH=arm64 $(GO) build \
+	 -ldflags "$(LDFLAGS)" \
+	 -o $@ \
+	 .
+
+build/$(BINNAME)-$(VERSION).linux-amd64: $(SRCS)
+	GOOS=$* GOARCH=amd64 $(GO) build \
+	 -ldflags  "$(LDFLAGS)" \
+	 -o $@ \
+	 .
