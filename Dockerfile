@@ -1,14 +1,14 @@
-FROM golang:1.16-alpine AS build
+#syntax=docker/dockerfile:1.5.1
 
-RUN mkdir /src
-WORKDIR /src
+FROM golang:1.20-alpine AS build
+WORKDIR /go/src/exporter_exporter
+COPY . .
+ENV CGO_ENABLED=0
+ENV GOOS=linux
 
-COPY go.mod go.sum /src/
-RUN go mod download
+RUN go mod download ;\
+    go build -trimpath
 
-COPY *.go /src/
-RUN go build .
-
-FROM alpine:latest
-COPY --from=build /src/exporter_exporter /usr/bin/
-ENTRYPOINT ["/usr/bin/exporter_exporter"]
+FROM gcr.io/distroless/static:latest AS runtime
+COPY --from=build /go/src/exporter_exporter/exporter_exporter /exporter_exporter
+ENTRYPOINT [ "/exporter_exporter" ]
