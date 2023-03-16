@@ -132,7 +132,7 @@ func checkModuleConfig(name string, cfg *moduleConfig) error {
 			return fmt.Errorf("module %v must have a non-zero port set", name)
 		}
 		if cfg.HTTP.Verify == nil {
-			v := true
+			v := false
 			cfg.HTTP.Verify = &v
 		}
 		if cfg.HTTP.Scheme == "" {
